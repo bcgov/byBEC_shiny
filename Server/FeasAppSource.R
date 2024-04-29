@@ -198,11 +198,12 @@ jscode_fh <- paste0('window.LeafletWidget.methods.addFHTiles = function(BGC,Colo
       subzLayer.bringToFront();
       
       var prevPest = ["SBSdk","IDFdk3"];
+      var prevOHR = ["SBSdk","IDFdk3"];
       //update style for pests
       Shiny.addCustomMessageHandler("colourPest",function(fhDat){
         var pestBGC = fhDat["bgc"];
         var fhCols = fhDat["fhcol"];
-        console.log(fhDat);
+        
         prevPest.forEach((hl,i) => {
           subzLayer.resetFeatureStyle(hl);
         });
@@ -222,6 +223,24 @@ jscode_fh <- paste0('window.LeafletWidget.methods.addFHTiles = function(BGC,Colo
       Shiny.addCustomMessageHandler("clearPest",function(dat){
         prevPest.forEach((hl,i) => {
           subzLayer.resetFeatureStyle(hl);
+        });
+        prevOHR.forEach((hl,i) => {
+          subzLayer.resetFeatureStyle(hl);
+        });
+      });
+      
+      Shiny.addCustomMessageHandler("clear_unit",function(units){
+        prevOHR = units
+        let style_clear = {
+            weight: 0,
+            fillColor: "#ffffff",
+            fillOpacity: 0,
+            fill: true
+          };
+        
+        console.log(units);
+        units.forEach((hl,i) => {
+          subzLayer.setFeatureStyle(hl, style_clear);
         });
       });
       

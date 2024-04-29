@@ -17,6 +17,47 @@ sppDb <- dbPool(
 # updates <- updates[,.(Region,SS_NoSpace,Spp,`Suitability(refguide)`,`COAST 5Feb+25Feb`,`COAST SEPT 2021`)]
 # setnames(updates,c("region","ss_nospace","spp","OrigFeas","Update1","Update2"))
 
+
+dat <- dbGetQuery(sppDb, "select distinct feasorig.bgc, feasorig.spp, feasorig.newfeas 
+                  from forhealth full join feasorig on 
+                  forhealth.treecode = feasorig.spp and 
+                  forhealth.bgc = feasorig.bgc where forhealth.bgc IS NULL;")
+dat <- as.data.table(dat)
+dat2 <- dat[,.(FeasMax = min(newfeas)), by = .(bgc, spp)]
+dat2 <- dat2[FeasMax <= 3,]
+unique(dat2$bgc)
+bgcs <- fread("../CCISS_ShinyApp/data-raw/data_tables/WNA_BGCs_Info_v12_15.csv")
+bc_bgcs <- bgcs[DataSet == "BC",BGC]
+dat3 <- dat2[bgc %in% bc_bgcs,]
+dat3 <- dat3[spp != "",]
+spps <- unique(dat3$spp)
+
+fh <- dbGetQuery(sppDb, "select * from forhealth")
+fh <- as.data.table(fh)
+fwrite(fh,"fh_save_April23.csv")
+fh <- fread("fh_save_April23.csv")
+
+spps <- c("Fd", "Sw","At","Pw","Sx","Ss","Yc","Act","Bl","Cw","Hw","Lw","Pl","Py")
+
+for(curr_spp in spps){
+  cat(curr_spp," ")
+  pests <- unique(fh[treecode == curr_spp,.(pest,pest_name)])
+  new_bgcs <- dat3[spp == curr_spp, bgc]
+  if(length(new_bgcs) > 0 & nrow(pests) > 0){
+    new_dat <- data.table(bgc = rep(new_bgcs, each = nrow(pests)), 
+                          treecode = curr_spp,
+                          pest = rep(pests$pest, length(new_bgcs)),
+                          pest_name = rep(pests$pest_name, length(new_bgcs)),
+                          hazard = "UN",hazard_update = "UN",
+                          mod = NA,
+                          region = "BC")
+    dbWriteTable(sppDb, "forhealth", new_dat, row.names = F, append = TRUE)
+  }
+}
+
+
+temp <- fh[,.(Num = .N), by = .(bgc,treecode)]
+
 fh <- dbGetQuery(sppDb, "select * from forhealth")
 fwrite(fh, "ForestHealthDownload.csv")
 ##check that it's safe to combine the update columns

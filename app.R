@@ -204,6 +204,7 @@ ui <- fluidPage(theme = shinytheme("lumen"),
                                                 multiple = F),
                                     radioButtons("fh_region","Show Results for: ", choices = c("BC","WNA"),
                                                  selected = "BC", inline = T),
+                                    checkboxInput("fhOHR","Show OHR", value = T),
                                     splitLayout(actionButton("downloadFH","Download CSV"),
                                                 actionButton("uploadFH","Upload CSV"),
                                                 downloadButton("downloadFHMap","Download Spatial"))

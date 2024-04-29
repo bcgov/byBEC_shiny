@@ -94,8 +94,8 @@ assCols <- data.table(ID = c(1,2,3,4,5,0),
                       Col = c("#C30000","#E79B1A","#E6F000","#B4FB29","#008D1A","#4f4f4f"))
 assID <- data.table(assessment = c("Fail","Poor","Fair","Good","Excellent","UN"),
                     ID = c(1,2,3,4,5,0))
-fhCols <- data.frame(hazard = c("High","Moderate","Low"), 
-                     Col = c("#D80000","#FFEF01","#0CC200"))
+fhCols <- data.frame(hazard = c("Unspecified","Uncertain", "Nil", "Low","Moderate","High"), 
+                     Col = c("#443e3d","#840090","#185406", "#B8FF33","#FFEF01","#D80000"))
 
 proj_names <- dbGetQuery(sppDb, "select distinct trial_type from offsite_site")[,1]
 

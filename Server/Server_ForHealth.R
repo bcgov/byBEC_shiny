@@ -6,7 +6,8 @@ observeEvent(input$showinstr_forhealth,{
 
 observeEvent(input$downloadFH,{
   showModal(modalDialog(
-    selectInput("downloadPest","Select Pest",choices = pestOps,multiple = F),
+    selectInput("downloadPest","Select Pest",choices = sort(pestOps),
+                multiple = F,selected = input$pestSpp),
     downloadButton("downloadPestButton")
   ))
 })
@@ -42,8 +43,8 @@ observeEvent(input$fhUploadGo,{
     dbDat[dat, new := i.hazard_update, on = c("bgc","treecode","pest")]
     datNew <- dbDat[hazard_update != new,]
     datNew[,mod := input$fhUploadMod]
-    if(any(!datNew$hazard_update %in% c("Low","Moderate","High","UN"))){
-      shinyalert("Oops!","Hazard values must be Low, Moderate, High, or UN. Please correct the values and resubmit")
+    if(any(!datNew$hazard_update %in% c("Nil", "Low","Moderate","High","UN","Uncertain"))){
+      shinyalert("Oops!","Hazard values must be Nil, Low, Moderate, High, Uncertain, or UN. Please correct the values and resubmit")
     }else{
       datNew[,comb := paste0("('",bgc,"','",treecode,"','",pest,"','",new,"','",mod,"')")]
       dat <- paste(datNew$comb,collapse = ",")
@@ -63,7 +64,7 @@ observeEvent(input$fhUploadGo,{
 
 
   output$downloadPestButton <- downloadHandler(
-    filename = paste0("ForestHealth_Download.csv"),
+    filename = paste0(input$downloadPest, "_ForestHealth_Download.csv"),
     content = function(file){
       dat <- dbGetQuery(sppDb,paste0("SELECT * from forhealth WHERE pest = '",
                                      input$downloadPest,"' AND region = 'BC'"))
@@ -166,8 +167,8 @@ observeEvent(input$tabs,{
           overlayGroups = c("BGCs","Pests","Districts","Cities"),
           position = "topright") %>%
         addLegend(position = "bottomright",
-                  labels = c("Unspecified","Low","Moderate","High","Outside Range"),
-                  colors = c("#443e3d","#0CC200","#FFEF01","#D80000","#840090"),
+                  labels = c("Unspecified","Uncertain", "Nil", "Low","Moderate","High"),
+                  colors = c("#443e3d","#840090","#185406", "#B8FF33","#FFEF01","#D80000"),
                   title = "Hazard",
                   layerId = "bec_fh")
     })
@@ -176,15 +177,15 @@ observeEvent(input$tabs,{
 })
 
 prepDatFH <- reactive({
-  QRY <- paste0("select bgc,ss_nospace,sppsplit,spp,feasible from feasorig where spp = '",
+  QRY <- paste0("select bgc,ss_nospace,sppsplit,spp,feasible,outrange from feasorig where spp = '",
                 substr(input$fhSpp,1,2),"' and feasible in (1,2,3)")
   d1 <- dbGetQuery(sppDb, QRY)
   if(nrow(d1) != 0){
     feas <- as.data.table(d1)
-    feasMax <- feas[,.(SuitMax = min(feasible)), by = .(bgc,spp)]
+    feasMax <- feas[,.(SuitMax = min(feasible)), by = .(bgc,spp,outrange)]
     feasMax[,Col := "#443e3dFF"]
     feasMax[,Lab := bgc]
-    feasMax[,.(bgc,Col,Lab)]
+    feasMax[,.(bgc,Col,Lab,outrange)]
   }else{
     data.table()
   }
@@ -212,13 +213,45 @@ observeEvent({c(input$pestSpp,input$submitFH,input$submitFHLong,input$fh_region)
     setnames(dat, old = "hazard_update", new = "hazard")
     dat[fhCols,fhcol := i.Col, on = "hazard"]
     rangeDat <- prepDatFH()
-    dat[rangeDat, InRange := i.Col, on = "bgc"]
-    dat[is.na(InRange), fhcol := "#840090"]
+    dat[rangeDat, OHR := i.outrange, on = "bgc"]
+    if(!input$fhOHR){
+      dat <- dat[OHR != TRUE,]
+    }
+    #dat[is.na(InRange), fhcol := "#840090"]
     session$sendCustomMessage("colourPest",dat[,.(bgc,fhcol)])
   }else{
     session$sendCustomMessage("clearPest","puppy")
   }
   
+})
+
+observeEvent(input$fhOHR,{
+  if(!input$fhOHR){
+    rangeDat <- prepDatFH()
+    session$sendCustomMessage("clear_unit", unique(rangeDat[outrange == TRUE, bgc]))
+  }else{
+    session$sendCustomMessage("clearPest","puppy")
+    if(input$fh_region == "BC"){
+      q1 <- paste0("select bgc,hazard_update from forhealth where treecode like '",
+                   substr(input$fhSpp,1,2),"' and pest = '",input$pestSpp,
+                   "' and hazard_update <> 'UN' and region = 'BC'")
+      dat <- dbGetQuery(sppDb,q1)
+    }else{
+      print("getting WNA")
+      q1 <- paste0("select bgc,hazard_update from forhealth where treecode like '",
+                   substr(input$fhSpp,1,2),"' and pest = '",input$pestSpp,
+                   "' and hazard_update <> 'UN'")
+      dat <- dbGetQuery(sppDb,q1)
+    }
+    dat <- as.data.table(dat)
+
+    if(nrow(dat) > 0){
+      setnames(dat, old = "hazard_update", new = "hazard")
+      dat[fhCols,fhcol := i.Col, on = "hazard"]
+      #dat[is.na(InRange), fhcol := "#840090"]
+      session$sendCustomMessage("colourPest",dat[,.(bgc,fhcol)])
+    }
+  }
 })
 
 observeEvent({c(
@@ -273,7 +306,7 @@ observeEvent({c(input$fh_click,input$fhSpp,input$pestSpp,input$submitFHLong,inpu
     output$fh_hot <- renderRHandsontable({
       rhandsontable(dat[,!c("common_name","pest_name")],col_highlight = col_num, 
                     row_highlight = row_num,height = 600)  %>%
-        hot_cols(type = "dropdown",source = c("Nil","Low","Moderate","High","UN"),
+        hot_cols(type = "dropdown",source = c("Nil","Low","Moderate","High","UN","Uncertain"),
                  renderer = 
                    "function(instance, td, row, col, prop, value, cellProperties) {
                                         Handsontable.renderers.TextRenderer.apply(this, arguments);
@@ -326,7 +359,7 @@ observeEvent({c(input$pestSpp,
                   if(nrow(dat) > 0){
                     output$fh_hot_long <- renderRHandsontable({
                       rhandsontable(dat) %>%
-                        hot_col("hazard_update",type = "dropdown",source = c("Nil","Low","Moderate","High","UN"),strict = T)
+                        hot_col("hazard_update",type = "dropdown",source = c("Nil","Low","Moderate","High","UN","Uncertain"),strict = T)
                     })
                   }
                   
@@ -335,7 +368,8 @@ observeEvent({c(input$pestSpp,
 observeEvent(input$submitFH,{
   dat <- as.data.table(hot_to_r(input$fh_hot))
   dat[dat == "NULL"] <- NA
-  dat <- melt(dat,id.vars = c("pest_name","pest"),variable.name = "treecode",value.name = "hazard_update")
+  #browser()
+  dat <- melt(dat,id.vars = c("pest"),variable.name = "treecode",value.name = "hazard_update")
   dat[,mod := input$fhMod]
   dat[,bgc := input$fh_click]
   if(nrow(dat) > 0){
