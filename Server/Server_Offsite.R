@@ -438,8 +438,8 @@ observeEvent(input$submitAss_full,{
 
 })
 
-observeEvent(input$offsiteMap_marker_click,{
-  val <- input$offsiteMap_marker_click
+observeEvent(input$offsiteMap_glify_click,{
+  val <- input$offsiteMap_glify_click
   globalTrialID$ID = val$id
 })
 
@@ -448,10 +448,11 @@ observeEvent({c(input$trialType,
                 input$sppPick2,
                 input$multiSppTrial,
                 input$submitAss,
+                input$ass_trials,
                 #input$submitAss_full,
                 input$submitoffsite_site)},{
                   leafletProxy("offsiteMap") %>%
-                    clearMarkers()
+                    clearGlLayers()
                   if(!is.null(input$trialType)){
                     #browser()
                     if(input$multiSppTrial){
@@ -509,44 +510,74 @@ observeEvent({c(input$trialType,
                     if(nrow(dat2) == 0){
                       dat2 <- NULL
                       leafletProxy("offsiteMap") %>%
-                        clearMarkers()
+                        leafgl::clearGlLayers()
                     }else{
                       #browser()
                       plotLocs <- unique(dat2["trial_id"])
                       dat <- as.data.table(st_drop_geometry(dat2))
                       dat[,qualitative_vigour := as.character(qualitative_vigour)]
                       dat[is.na(qualitative_vigour), qualitative_vigour := "UN"]
+                      if(input$ass_trials){
+                        dat <- dat[qualitative_vigour != "UN",]
+                      }
                       dat[assID, ID := i.ID, on = c(qualitative_vigour = "assessment")]
                       dat <- dat[,.(ID = max(ID)), by = .(trial_id,spp,trial_type,label)]
                       dat[assCols, Col := i.Col, on = "ID"]
-                      dat[,label := paste0("Name: ",label)]
                       dat[,Col := as.character(Col)]
-                      dat[symbolGuide, Symbol := i.symbol, on = c("trial_type")]
+                      #dat[symbolGuide, Symbol := i.symbol, on = c("trial_type")]
                       #updateSelectInput(session,"trialSelect",choices = unique(dat$trial_id))
                       plotLocs <- st_as_sf(merge(plotLocs, dat, by = "trial_id"))
-                      temp <- as.data.table(st_coordinates(plotLocs))
-                      setnames(temp, c("long","lat"))
-                      plotLocs <- cbind(plotLocs, temp)
-                      vals <- unique(plotLocs$trial_type)
-                      symbols <- symbolGuide[trial_type %in% vals,symbol]
+                      temp <- as.data.frame(st_coordinates(plotLocs))
+                      colnames(temp) <- c("long","lat")
+                      plotLocs <- cbind(temp, plotLocs)
+                      plotLocs$label <- paste0("Name: ",plotLocs$label, " (Lon: ", plotLocs$long, ", Lat: ", plotLocs$lat,")")
+                      plotLocs <- st_as_sf(plotLocs)
+                      plocs_res <- plotLocs[plotLocs$trial_type %in% c("Research","GOM"),]
+                      plocs_op <- plotLocs[!plotLocs$trial_type %in% c("Research","GOM"),]
+                      #browser()
+
+                      # plotLocs <- cbind(plotLocs, temp)
+                      # vals <- unique(plotLocs$trial_type)
+                      # symbols <- symbolGuide[trial_type %in% vals,symbol]
                       #print(vals)
                       # observeEvent(input$offsiteMap_zoom,{
                       #   print(input$offsiteMap_zoom)
-                        leafletProxy("offsiteMap") %>%
-                          addSymbols(data = plotLocs,
-                                     lat = ~ lat,
-                                     lng = ~ long,
-                                     values = ~ trial_type,
-                                     shape = symbols,
-                                     fillOpacity = 0.9,
-                                     color = ~ Col,
-                                     width = 9,
-                                     layerId = ~ trial_id,
-                                     label = ~ label)
                       
+                      if(nrow(plocs_res) > 0){
+                        leafletProxy("offsiteMap") %>%
+                          addGlPoints(data = plocs_res,
+                                      fillColor = plocs_res$Col,
+                                      popup = plocs_res$label,
+                                      group = "pts", radius = 12,
+                                      layerId = plocs_res$trial_id,
+                                      fragmentShaderSource = "square")
+                      } 
+                      if(nrow(plocs_op) > 0){
+                        leafletProxy("offsiteMap") %>%
+                          addGlPoints(data = plocs_op,
+                                      fillColor = plocs_op$Col,
+                                      popup = plocs_op$label,
+                                      layerId = plocs_op$trial_id,
+                                      group = "pts", radius = 12)
+                      }
+                          
+                            
+                            
+                                                
                     }
                   }
                     
                 })
+
+# addSymbols(data = plotLocs,
+#            lat = ~ lat,
+#            lng = ~ long,
+#            values = ~ trial_type,
+#            shape = symbols,
+#            fillOpacity = 0.9,
+#            color = ~ Col,
+#            width = 9,
+#            layerId = ~ trial_id,
+#            label = ~ label)
 
 ###end offsite tab##
