@@ -145,7 +145,7 @@ symbolGuide <- data.table(trial_type = c("GOM", "Operational","Other","Research"
 
 minStart <- dbGetQuery(sppDb,"select min(plantingyear) from offsite_site")[1,1]
 #maxStart <- dbGetQuery(sppDb,"select max(plantingyear) from offsite_site")[1,1]
-maxStart <- 2023
+maxStart <- 2024
 
 offsiteNames <- dbGetQuery(sppDb,"select distinct plotid from offsite")[,1]
 offsiteProj <- dbGetQuery(sppDb,"select distinct project_id from offsite")[,1]

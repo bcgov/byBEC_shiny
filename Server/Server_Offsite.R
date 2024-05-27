@@ -497,7 +497,8 @@ observeEvent({c(input$trialType,
                                                         from planting_info
                                                         JOIN trial_info
                                                         ON (planting_info.trial_id = trial_info._id)
-                                                        where species in ('",paste(substr(input$sppPick2,1,2),collapse = "','"),"')")) %>% unique()
+                                                        where species in ('",paste(substr(input$sppPick2,1,2),collapse = "','"),"')
+                                                        AND date_established > '", input$trialStart2[1],"-01-01' AND date_established < '",input$trialStart2[2],"-12-31'")) %>% unique()
                       
                       if(nrow(dat) > 0){
                         dat <- st_as_sf(dat, coords = c("longitude","latitude"), crs = 4326)
