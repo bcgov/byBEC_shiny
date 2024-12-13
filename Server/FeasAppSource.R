@@ -1,8 +1,8 @@
 ## Source at start of FeasibilityApp
 ## Kiri Daust
 
-bgc_tileserver <- "https://tileserver.thebeczone.ca/data/WNA_MAP/{z}/{x}/{y}.pbf"
-bgc_tilelayer <- "WNA_MAP"
+bgc_tileserver <- "https://tileserver.thebeczone.ca/data/WNA_v13/{z}/{x}/{y}.pbf"
+bgc_tilelayer <- "WNA_v13"
 district_tileserver <- "https://tileserver.thebeczone.ca/data/Districts/{z}/{x}/{y}.pbf"
 district_tilelayer <- "Districts"
 
@@ -63,7 +63,7 @@ jscode_feas <- paste0('window.LeafletWidget.methods.addGridTiles = function(BGC,
       var subzLayer = L.vectorGrid.protobuf(
         "', bgc_tileserver, '",
         vectorTileOptions("bec_feas", "', bgc_tilelayer, '", true,
-                          "tilePane", subzoneColors, "MAP_LABEL", "MAP_LABEL")
+                          "tilePane", subzoneColors, "BGC", "BGC")
       )
       //console.log(subzLayer);
       this.layerManager.addLayer(subzLayer, "tile", "bec_feas", "Feasibility")
@@ -72,17 +72,17 @@ jscode_feas <- paste0('window.LeafletWidget.methods.addGridTiles = function(BGC,
       subzLayer.on("click", function(e){
         console.log(e.layer);
         subzLayer.resetFeatureStyle(selectHighlight);
-        Shiny.setInputValue("bgc_click",e.layer.properties.MAP_LABEL);
+        Shiny.setInputValue("bgc_click",e.layer.properties.BGC);
         var properties = e.layer.properties
-  			  highlight = properties.MAP_LABEL
+  			  highlight = properties.BGC
   			  var style = {
             weight: 1,
             color: "#fc036f",
-            fillColor: subzoneColors[properties.MAP_LABEL],
+            fillColor: subzoneColors[properties.BGC],
             fillOpacity: 1,
             fill: true
           }
-          subzLayer.setFeatureStyle(properties.MAP_LABEL, style);
+          subzLayer.setFeatureStyle(properties.BGC, style);
       });
       
       
@@ -99,7 +99,7 @@ jscode_feas <- paste0('window.LeafletWidget.methods.addGridTiles = function(BGC,
       })
 		  
       subzLayer.bindTooltip(function(e) {
-        return tooltipLabs[e.properties.MAP_LABEL]
+        return tooltipLabs[e.properties.BGC]
       }, {sticky: true, textsize: "10px", opacity: 1});
       subzLayer.bringToFront();
       
@@ -182,18 +182,18 @@ jscode_fh <- paste0('window.LeafletWidget.methods.addFHTiles = function(BGC,Colo
       var subzLayer = L.vectorGrid.protobuf(
         "', bgc_tileserver, '",
         vectorTileOptions("bec_fh", "', bgc_tilelayer, '", true,
-                          "tilePane", subzoneColors, "MAP_LABEL", "MAP_LABEL")
+                          "tilePane", subzoneColors, "BGC", "BGC")
       )
       console.log(subzLayer);
       this.layerManager.addLayer(subzLayer, "tile", "bec_fh", "Pests");
       Shiny.setInputValue("fh_click",null);
 
       subzLayer.on("click", function(e){
-        Shiny.setInputValue("fh_click",e.layer.properties.MAP_LABEL);
+        Shiny.setInputValue("fh_click",e.layer.properties.BGC);
       });
 
       subzLayer.bindTooltip(function(e) {
-        return tooltipLabs[e.properties.MAP_LABEL]
+        return tooltipLabs[e.properties.BGC]
       }, {sticky: true, textsize: "10px", opacity: 1});
       subzLayer.bringToFront();
       
@@ -283,13 +283,13 @@ jscode_clim <- paste0('window.LeafletWidget.methods.addClimSumTiles = function()
       var subzLayer = L.vectorGrid.protobuf(
         "', bgc_tileserver, '",
         vectorTileOptions("bec_fh", "', bgc_tilelayer, '", true,
-                          "tilePane", "MAP_LABEL", "MAP_LABEL")
+                          "tilePane", "BGC", "BGC")
       )
       this.layerManager.addLayer(subzLayer, "tile", "bec_clim", "Climate");
       Shiny.setInputValue("clim_click",null);
 
       subzLayer.on("click", function(e){
-        Shiny.setInputValue("clim_click",e.layer.properties.MAP_LABEL);
+        Shiny.setInputValue("clim_click",e.layer.properties.BGC);
       });
 
       
@@ -307,7 +307,7 @@ jscode_clim <- paste0('window.LeafletWidget.methods.addClimSumTiles = function()
           tooltipLabs[bec] = label;
         });
         subzLayer.bindTooltip(function(e) {
-          return tooltipLabs[e.properties.MAP_LABEL];
+          return tooltipLabs[e.properties.BGC];
         }, {sticky: true, textsize: "10px", opacity: 1});
 
         climBGC.forEach((ID,i) => {
@@ -371,7 +371,7 @@ addBGCTiles <- function(map) {
       var subzLayer = L.vectorGrid.protobuf(
         "', bgc_tileserver, '",
         vectorTileOptions("bec_map", "', bgc_tilelayer, '", false,
-                          "tilePane", subzoneColors, "MAP_LABEL", "MAP_LABEL")
+                          "tilePane", subzoneColors, "BGC", "BGC")
       )
       this.layerManager.addLayer(subzLayer, "tile", "bec_map", "BGCs");
       
@@ -466,7 +466,7 @@ addSelectBEC <- function(map) {
       var subzLayer = L.vectorGrid.protobuf(
         "', bgc_tileserver, '",
         vectorTileOptions("bec_select", "', bgc_tilelayer, '", true,
-                          "tilePane", subzoneColors, "MAP_LABEL", "MAP_LABEL")
+                          "tilePane", subzoneColors, "BGC", "BGC")
       )
       this.layerManager.addLayer(subzLayer, "tile", "bec_select", "BEC");
       
@@ -484,10 +484,10 @@ addSelectBEC <- function(map) {
         selectHighlight.forEach((ID,i) => {
           subzLayer.resetFeatureStyle(ID);
         });
-        Shiny.setInputValue("becselect_click",e.layer.properties.MAP_LABEL);
+        Shiny.setInputValue("becselect_click",e.layer.properties.BGC);
         var properties = e.layer.properties
-  			  highlight = properties.MAP_LABEL
-          subzLayer.setFeatureStyle(properties.MAP_LABEL, styleHL);
+  			  highlight = properties.BGC
+          subzLayer.setFeatureStyle(properties.BGC, styleHL);
       });
 
       var highlight;
@@ -526,7 +526,7 @@ addSelectBEC <- function(map) {
       });
       
       subzLayer.bindTooltip(function(e) {
-        return e.properties.MAP_LABEL
+        return e.properties.BGC
       }, {sticky: true, textsize: "10px", opacity: 1});
       subzLayer.bringToFront();
       

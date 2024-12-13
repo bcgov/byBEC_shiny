@@ -196,11 +196,11 @@ observeEvent(input$submitoffsite_site,{
   
   site <- as.data.table(hot_to_r(input$blanksite))
   site[,trial_id := input$newtrial_id]
-  site <- as.data.table(st_as_sf(site, coords = c("Long","Lat"), 
-                   crs = 4326, agr = "constant"))
-  site2 <- rbind(sitenames, site, fill = T)
-  site2 <- st_as_sf(site2[-1,])
-  st_write(site2, sppDb,"offsite_site",append = T, row.names = F)
+  site <- st_as_sf(site, coords = c("Long","Lat"), 
+                   crs = 4326, agr = "constant")
+  #site2 <- rbind(sitenames, site, fill = T)
+  #site2 <- st_as_sf(site2[-1,])
+  st_write(site, sppDb,"offsite_site",append = T, row.names = F)
   plant <- as.data.table(hot_to_r(input$blankplant))
   plant <- plant[!is.na(spp) | !is.na(sppvar),]
   if(nrow(plant) > 0){
@@ -260,7 +260,8 @@ observeEvent(input$trialaddSelect,{
 
 
   output$blanksite <- renderRHandsontable({
-    dat <- setDT(dbGetQuery(sppDb,"select * from offsite_site limit 1"))
+    dat <- as.data.table(dbGetQuery(sppDb,"select * from offsite_site limit 1"))
+    dat[,row_id := NULL]
     dat[,geometry := NULL]
     dat[,trial_id := NULL]
     dat[1,] <- NA
@@ -327,10 +328,15 @@ observeEvent(input$trialaddSelect,{
   output$offsite_site <- renderRHandsontable({
     if(!is.null(globalTrialID$ID)){
       if(("GOM" %in% input$trialType) & nchar(globalTrialID$ID) > 30){
+        #browser()
+        bounds <- input$offsiteMap_bounds
         dat <- setDT(dbGetQuery(gomDb,paste0("select plantation_id,date_established,
-                                           site_series,elevation 
+                                           site_series,elevation
                                            from planting_info where trial_id = '",
-                                             globalTrialID$ID,"'"))) %>% unique()
+                                             globalTrialID$ID,"' and latitude > ",bounds$south,
+                                             " and latitude < ",bounds$north," and longitude > ",
+                                             bounds$west," and longitude < ",bounds$south))) %>% unique()
+        
         rhandsontable(dat,colHeaders = c("Plantation_ID","Established","BGC",
                                          "Elevation"))
       }else{
@@ -352,9 +358,12 @@ observeEvent(input$trialaddSelect,{
   output$offsite_planting <- renderRHandsontable({
     if(!is.null(globalTrialID$ID)){
       if(("GOM" %in% input$trialType) & nchar(globalTrialID$ID) > 30){
-        dat <- setDT(dbGetQuery(gomDb,paste0("select plantation_id, species, seedlot,trees_number
+        bounds <- input$offsiteMap_bounds
+        dat <- setDT(dbGetQuery(gomDb,paste0("select plantation_id, species, seedlot,trees_number, latitude, longitude
                                            from planting_info where trial_id = '", 
-                                             globalTrialID$ID,"'")))
+                                             globalTrialID$ID,"' and latitude > ",bounds$south,
+                                             " and latitude < ",bounds$north," and longitude > ",
+                                             bounds$west," and longitude < ",bounds$south)))
         rhandsontable(dat,colHeaders = c("Plantation_ID","Spp","Seedlots","Number Planted"),overflow = "visible")
       }else{
         dat <- setDT(dbGetQuery(sppDb,paste0("select trial_id, spp, seedlots,num_planted, qualitative_vigour, assessor_name_qual, qual_date
@@ -497,7 +506,7 @@ observeEvent({c(input$trialType,
                                                         from planting_info
                                                         JOIN trial_info
                                                         ON (planting_info.trial_id = trial_info._id)
-                                                        where species in ('",paste(substr(input$sppPick2,1,2),collapse = "','"),"')
+                                                        where species similar to '(",paste(substr(input$sppPick2,1,2),collapse = "%|"),"%)'
                                                         AND date_established > '", input$trialStart2[1],"-01-01' AND date_established < '",input$trialStart2[2],"-12-31'")) %>% unique()
                       
                       if(nrow(dat) > 0){

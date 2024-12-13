@@ -71,7 +71,7 @@ onStop(function() {
   poolClose(con)
 })
 
-subzones_colours_ref <- fread("./inputs/WNA_v12_HexCols.csv")
+subzones_colours_ref <- fread("./inputs/WNAv13_SubzoneCols.csv")
 setnames(subzones_colours_ref,c("BGC","Col"))
 
 ##data for edatopic grid

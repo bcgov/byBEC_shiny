@@ -192,10 +192,7 @@ observeEvent({c(input$showtrees,
 prepDatSimple <- reactive({
   QRY <- paste0("select bgc,feasorig.ss_nospace,sppsplit,spp,outrange,",globalFeas$dat,
                 " FROM feasorig 
-                JOIN special_ss
-                USING (ss_nospace)
-                WHERE special_code IS NULL 
-                AND spp = '",substr(input$sppPick,1,2),
+                WHERE spp = '",substr(input$sppPick,1,2),
                 "' AND ",globalFeas$dat," in (1,2,3,4,5)")
   d1 <- dbGetQuery(sppDb, QRY)
   if(nrow(d1) == 0){
@@ -282,13 +279,18 @@ prepDatSimple <- reactive({
 })
 
 ##prep frequency colours
+# QRY <- paste0("select bgc,feasorig.ss_nospace,sppsplit,spp,outrange,",globalFeas$dat,
+#               " FROM feasorig 
+#                 JOIN special_ss
+#                 USING (ss_nospace)
+#                 WHERE special_code IS NULL 
+#                 AND spp = '",substr(input$sppPick,1,2),
+#               "' AND ",globalFeas$dat," in (1,2,3,4,5)")
+
 prepFreq <- reactive({
   QRY <- paste0("select bgc,feasorig.ss_nospace,sppsplit,spp,outrange,",globalFeas$dat,
                 " FROM feasorig 
-                JOIN special_ss
-                USING (ss_nospace)
-                WHERE special_code IS NULL 
-                AND spp = '",substr(input$sppPick,1,2),
+                WHERE spp = '",substr(input$sppPick,1,2),
                 "' AND ",globalFeas$dat," in (1,2,3,4,5)")
   feas <- as.data.table(dbGetQuery(sppDb, QRY))
   if(!input$showOHR){
@@ -321,10 +323,7 @@ prepFreq <- reactive({
 prepEdaDat <- reactive({
   QRY <- paste0("select bgc,feasorig.ss_nospace,sppsplit,spp,outrange,",globalFeas$dat,
                 " FROM feasorig 
-                JOIN special_ss
-                USING (ss_nospace)
-                WHERE special_code IS NULL 
-                AND spp = '",substr(input$sppPick,1,2),
+                WHERE spp = '",substr(input$sppPick,1,2),
                 "' AND ",globalFeas$dat," in (1,2,3)")
   feas <- as.data.table(dbGetQuery(sppDb, QRY))
   if(!input$showOHR){
@@ -400,9 +399,8 @@ prepTable <- reactive({
   print(unit)
   idx_row <- NULL
   idx_col <- NULL
-  QRY <- paste0("select bgc,feasorig.ss_nospace,special_code, sppsplit, spp, outrange, ",globalFeas$dat,
-                " from feasorig JOIN special_ss
-                USING (ss_nospace) 
+  QRY <- paste0("select bgc,feasorig.ss_nospace, sppsplit, spp, outrange, ",globalFeas$dat,
+                " from feasorig
                 where bgc = '",unit,"' and ",globalFeas$dat," in (1,2,3,4)")
   feas <- as.data.table(dbGetQuery(sppDb, QRY))
   ohrdat <- feas[spp == substr(input$sppPick,1,2),.(ss_nospace,outrange)]
@@ -416,16 +414,17 @@ prepTable <- reactive({
   feas[ohrdat, OHR := i.outrange, on = "ss_nospace"]
   if(is.null(input$edaplot_selected)){
     feasSub <- feas[sppsplit != "X",]
-    tabOut <- data.table::dcast(feasSub, ss_nospace + special_code + OHR ~ sppsplit,fun.aggregate = mean, value.var = "feasible")
+    tabOut <- data.table::dcast(feasSub, ss_nospace + OHR ~ sppsplit,fun.aggregate = mean, value.var = "feasible")
     tabOut[,lapply(.SD,as.integer),.SDcols = -"ss_nospace"]
   }else{
+    #browser()
     id <- as.numeric(input$edaplot_selected)
     idSub <- idDat[ID == id,.(ID,edatopic)]
     edaSub <- eda[idSub, on = "edatopic"]
     edaSub <- edaSub[bgc == unit,]
     dat <- feas[ss_nospace %in% edaSub$ss_nospace & feasible %in% c(1,2,3,4),]
-    tabOut <- data.table::dcast(dat, ss_nospace + special_code + OHR ~ sppsplit, value.var = "feasible", fun.aggregate = mean)
-    tabOut[,lapply(.SD,as.integer),.SDcols = -c("ss_nospace","special_code")]
+    tabOut <- data.table::dcast(dat, ss_nospace + OHR ~ sppsplit, value.var = "feasible", fun.aggregate = mean)
+    tabOut[,lapply(.SD,as.integer),.SDcols = -c("ss_nospace")]
     if(!input$updatedfeas){
       QRY <- paste0("select ss_nospace,sppsplit,feasible from feasorig where bgc = '",
                     unit,"' and feasible in (1,2,3,4)")
@@ -441,6 +440,7 @@ prepTable <- reactive({
     }
     
   }
+  #browser()
   spp <- colnames(tabOut)
   spp[spp %in% c("Se","Sw","Sxw")] <- "Sx"
   spp[spp %in% c("Sxl","Sxs","Ss")] <- "Ss"        
@@ -472,8 +472,8 @@ observeEvent({c(input$bgc_click,
                       #browser()
                       rhandsontable(data = dat,readOnly = FALSE, col_highlight = temp$cIdx,
                                     row_highlight = temp$rIdx, spp_highlight = temp$sppCol) %>%
-                        hot_col(3, type = "checkbox", readOnly = FALSE) %>%
-                        hot_col(4:ncol(dat), format = "0", renderer = "
+                        hot_col(2, type = "checkbox", readOnly = FALSE) %>%
+                        hot_col(3:ncol(dat), format = "0", renderer = "
                 function(instance, td, row, col, prop, value, cellProperties) {
                 Handsontable.renderers.NumericRenderer.apply(this, arguments);
                 if (instance.params) {
@@ -510,18 +510,18 @@ observeEvent(input$submitdat,{
 sendToDb <- function(nme){
   #browser()
   dat <- as.data.table(hot_to_r(input$hot))
-  ss_sp <- unique(dat[!is.na(special_code),.(ss_nospace,special_code)])
-  if(nrow(ss_sp) > 0){
-    ss_sp[,comb := paste0("('",ss_nospace,"','",special_code,"')")]
-    val <- paste(ss_sp$comb,collapse = ",")
-    qry <- paste0("
-                  UPDATE special_ss
-                  SET special_code = v.sc
-                  FROM (values ",val,") AS v(ss,sc)
-                  WHERE special_ss.ss_nospace = v.ss
-                  ")
-    dbExecute(sppDb,qry)
-  }
+  # ss_sp <- unique(dat[!is.na(special_code),.(ss_nospace,special_code)])
+  # if(nrow(ss_sp) > 0){
+  #   ss_sp[,comb := paste0("('",ss_nospace,"','",special_code,"')")]
+  #   val <- paste(ss_sp$comb,collapse = ",")
+  #   qry <- paste0("
+  #                 UPDATE special_ss
+  #                 SET special_code = v.sc
+  #                 FROM (values ",val,") AS v(ss,sc)
+  #                 WHERE special_ss.ss_nospace = v.ss
+  #                 ")
+  #   dbExecute(sppDb,qry)
+  # }
   
   dat[,special_code := NULL]
   unit <- globalSelBEC()
